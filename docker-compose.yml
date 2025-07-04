@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  paddleocr-service:
+    build: .
+    container_name: paddleocr-service
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./logs:/app/logs
+      - ./temp:/app/temp
+      - ./models:/app/models
+      - ./config.yaml:/app/config.yaml
+    environment:
+      - PYTHONPATH=/app
+      - FLASK_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # 可选：添加 Nginx 反向代理
+  nginx:
+    image: nginx:alpine
+    container_name: paddleocr-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - paddleocr-service
+    restart: unless-stopped
+
+networks:
+  default:
+    name: paddleocr-network

@@ -1,0 +1,33 @@
+# PaddleOCR 服务配置文件
+
+server:
+  host: '0.0.0.0'              # 服务器地址
+  port: 8000                   # 服务器端口
+  debug: false                 # 调试模式
+  max_content_length: 52428800 # 最大文件大小 (50MB)
+
+ocr:
+  default_lang: 'ch'           # 默认语言
+  use_textline_orientation: true # 使用文本方向识别
+  use_gpu: false               # 是否使用 GPU
+  max_image_size: 4096         # 最大图像尺寸
+  supported_formats:           # 支持的图像格式
+    - '.jpg'
+    - '.jpeg'
+    - '.png'
+    - '.bmp'
+    - '.tiff'
+    - '.webp'
+
+performance:
+  preload_models:              # 预加载的模型
+    - 'ch'
+    - 'en'
+  max_batch_size: 10           # 最大批量大小
+  request_timeout: 60          # 请求超时时间（秒）
+  cleanup_temp_files: true     # 清理临时文件
+
+logging:
+  level: 'INFO'                # 日志级别
+  max_log_size: 10485760      # 最大日志文件大小 (10MB)
+  backup_count: 5              # 日志备份数量

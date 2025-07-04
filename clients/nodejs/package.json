@@ -1,0 +1,40 @@
+{
+  "name": "paddleocr-nodejs-client",
+  "version": "1.0.0",
+  "description": "PaddleOCR 独立服务的 Node.js 客户端",
+  "main": "paddleocr_client.js",
+  "scripts": {
+    "start": "node example.js",
+    "example": "node example.js",
+    "test": "node test.js"
+  },
+  "keywords": [
+    "paddleocr",
+    "ocr",
+    "nodejs",
+    "client",
+    "api",
+    "text-recognition",
+    "image-processing"
+  ],
+  "author": "PaddleOCR Team",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "form-data": "^4.0.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PaddlePaddle/PaddleOCR"
+  },
+  "bugs": {
+    "url": "https://github.com/PaddlePaddle/PaddleOCR/issues"
+  },
+  "homepage": "https://github.com/PaddlePaddle/PaddleOCR#readme"
+}

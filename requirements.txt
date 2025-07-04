@@ -1,0 +1,43 @@
+# PaddleOCR 独立服务依赖包
+
+# 核心依赖
+paddlepaddle==3.1.0 
+
+
+# Web 服务框架
+flask>=2.3.0
+flask-cors>=4.0.0
+gunicorn>=21.0.0
+
+# 图像处理
+opencv-python>=4.8.0
+Pillow>=10.0.0
+numpy>=1.21.0
+
+# 数据处理
+PyYAML>=6.0
+requests>=2.31.0
+
+# 日志和监控
+psutil>=5.9.0
+
+
+
+# 如果使用 GPU，取消注释此行，并注释掉上面的 paddlepaddle
+# paddlepaddle-gpu==3.1.0 -i https://www.paddlepaddle.org.cn/packages/stable/cu129/ 
+
+#需显卡驱动程序版本 ≥550.54.14（Linux）或 ≥550.54.14（Windows）
+# paddlepaddle-gpu==3.1.0 -i https://www.paddlepaddle.org.cn/packages/stable/cu126/
+
+# 需显卡驱动程序版本 ≥450.80.02（Linux）或 ≥452.39（Windows）
+# paddlepaddle-gpu==3.1.0 -i https://www.paddlepaddle.org.cn/packages/stable/cu118/
+
+
+
+
+
+# 开发和测试依赖
+# pytest>=7.0.0
+# pytest-cov>=4.0.0
+# black>=23.0.0
+# flake8>=6.0.0
