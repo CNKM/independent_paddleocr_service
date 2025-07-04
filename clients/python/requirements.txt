@@ -1,0 +1,4 @@
+# PaddleOCR Python 客户端依赖
+
+requests>=2.31.0
+Pillow>=10.0.0

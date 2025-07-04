@@ -19,30 +19,33 @@ PaddleOCR 独立服务是一个高性能、易部署的 OCR 服务包，提供 R
 
 ---
 
+
 ## 3. 目录结构
 
 ```
-independent_service/
 ├── paddleocr_service.py      # 主服务程序
 ├── config.yaml               # 配置文件
 ├── requirements.txt          # Python 依赖
 ├── Dockerfile                # Docker 镜像
 ├── docker-compose.yml        # Docker Compose
-├── start.sh / start.bat      # 启动脚本
-├── clients/                  # 客户端库
-│   ├── python/ java/ csharp/ nodejs/
-├── logs/ temp/ models/       # 日志、临时、模型目录
+├── manage.py                 # 管理脚本（安装/启动/测试等）
+├── clients/                  # 多语言客户端示例
+│   ├── python/               # Python 客户端与示例
+│   ├── java/                 # Java 客户端与示例
+│   ├── csharp/               # C# 客户端与示例
+│   └── nodejs/               # Node.js 客户端与示例
 ```
 
 ---
 
 ## 4. 快速开始
 
+
 ### 4.1 脚本一键安装（推荐）
 ```bash
-cd independent_service
 python manage.py setup
 ```
+
 
 ### 4.2 手动安装
 ```bash
@@ -50,9 +53,9 @@ pip install -r requirements.txt
 python paddleocr_service.py
 ```
 
+
 ### 4.3 Docker 部署
 ```bash
-cd independent_service
 docker build -t paddleocr-service .
 docker run -d -p 8000:8000 paddleocr-service
 # 或 docker-compose up -d
@@ -83,24 +86,25 @@ docker run -d -p 8000:8000 paddleocr-service
 
 ## 7. 客户端使用
 
+
 ### Python
-详见 `clients/python/README.md` 和 `example.py`
+详见 `clients/python/example.py`
 
 ### Java
-详见 `clients/java/README.md` 和 `PaddleOCRExample.java`
+详见 `clients/java/PaddleOCRExample.java`
 
 ### C#
-详见 `clients/csharp/README.md` 和 `Example.cs`
+详见 `clients/csharp/Example.cs`
 
 ### Node.js
-详见 `clients/nodejs/README.md` 和 `example.js`
+详见 `clients/nodejs/example.js`
 
 ---
 
 ## 8. 常见问题
 - 首次启动需联网下载模型，后续本地缓存
 - 端口冲突请检查 8000 端口占用
-- 详细日志见 logs 目录
+- 详细日志见 logs 目录（首次运行后自动生成）
 
 ---
 
