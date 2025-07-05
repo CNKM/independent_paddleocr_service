@@ -200,10 +200,100 @@ class OCRService:
     """OCR 服务类"""
     
     def __init__(self, config):
+        import threading
+        from queue import Queue
         self.config = config
         self.model_manager = OCRModelManager(config)
         self.temp_dir = tempfile.mkdtemp()
         logger.info(f"临时目录: {self.temp_dir}")
+        # 请求队列和结果字典
+        self._request_queue = Queue()
+        self._result_dict = {}
+        self._worker_thread = threading.Thread(target=self._worker, daemon=True)
+        self._worker_thread.start()
+
+    def _worker(self):
+        while True:
+            req_id, file_path, lang, use_gpu = self._request_queue.get()
+            try:
+                result = self._process_image_file_inner(file_path, lang, use_gpu)
+            except Exception as e:
+                import traceback
+                result = {
+                    'success': False,
+                    'timestamp': datetime.now().isoformat(),
+                    'error': str(e),
+                    'error_type': type(e).__name__,
+                    'traceback': traceback.format_exc()
+                }
+            self._result_dict[req_id] = result
+            self._request_queue.task_done()
+
+    def _process_image_file_inner(self, file_path, lang='ch', use_gpu=None):
+        # 原有的 process_image_file 逻辑全部移到这里
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"文件不存在: {file_path}")
+        file_ext = Path(file_path).suffix.lower()
+        if file_ext not in self.config['ocr']['supported_formats']:
+            raise ValueError(f"不支持的文件格式: {file_ext}")
+        image = cv2.imread(file_path)
+        if image is None:
+            raise ValueError("无法读取图像文件")
+        h, w = image.shape[:2]
+        max_size = self.config['ocr']['max_image_size']
+        if max(h, w) > max_size:
+            scale = max_size / max(h, w)
+            new_h, new_w = int(h * scale), int(w * scale)
+            image = cv2.resize(image, (new_w, new_h))
+            temp_path = os.path.join(self.temp_dir, f"resized_{uuid.uuid4().hex}.jpg")
+            cv2.imwrite(temp_path, image)
+            file_path = temp_path
+        model = self.model_manager.get_model(lang, use_gpu)
+        result = model.predict(file_path)
+        self.model_manager.stats['total_requests'] += 1
+        if result and len(result) > 0:
+            ocr_result = result[0]
+            texts = ocr_result.get('rec_texts', [])
+            scores = ocr_result.get('rec_scores', [])
+            polys = ocr_result.get('rec_polys', [])
+            formatted_result = {
+                'success': True,
+                'timestamp': datetime.now().isoformat(),
+                'lang': lang,
+                'text': ' '.join(texts),
+                'word_count': len(texts),
+                'avg_confidence': sum(scores) / len(scores) if scores else 0,
+                'details': []
+            }
+            for i, (text, score) in enumerate(zip(texts, scores)):
+                bbox = polys[i].tolist() if i < len(polys) else []
+                formatted_result['details'].append({
+                    'text': text,
+                    'confidence': float(score),
+                    'bbox': bbox
+                })
+            return formatted_result
+        else:
+            return {
+                'success': False,
+                'timestamp': datetime.now().isoformat(),
+                'error': '未识别到文本',
+                'error_type': 'NoTextFound'
+            }
+
+    def process_image_file(self, file_path, lang='ch', use_gpu=None):
+        # 请求队列串行化处理
+        import uuid, time
+        req_id = str(uuid.uuid4())
+        self._request_queue.put((req_id, file_path, lang, use_gpu))
+        # 等待结果
+        while req_id not in self._result_dict:
+            time.sleep(0.01)
+        result = self._result_dict.pop(req_id)
+        # 增强异常信息输出
+        if not result.get('success', True):
+            logger.error(f"OCR 处理异常: {result.get('error')}\nTraceback: {result.get('traceback')}")
+        return result
         
     def process_image_file(self, file_path, lang='ch', use_gpu=None):
         """处理图像文件"""

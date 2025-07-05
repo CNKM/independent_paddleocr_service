@@ -347,33 +347,39 @@ class ServiceManager:
     
 
     def test_service(self):
-        """仅测试 ocr/file 文件上传接口"""
-        logging.info("测试服务文件识别接口...")
+        """顺序测试 temp 目录下所有图片文件"""
+        logging.info("测试服务文件识别接口（批量）...")
         if not self._check_service_health():
             logging.error("服务健康检查失败")
             return False
         logging.info("服务健康检查通过")
 
-        # 只测 ocr/file
-        test_img_path = str(self.script_dir / 'temp' / 'test.png')
-        if not os.path.exists(test_img_path):
-            logging.error(f"测试图片不存在: {test_img_path}")
+        temp_dir = self.script_dir / 'temp'
+        img_files = [f for f in os.listdir(temp_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp'))]
+        if not img_files:
+            logging.error(f"测试图片不存在: {temp_dir}/*.png|jpg|jpeg|bmp|tiff|webp")
             return False
-        try:
-            with open(test_img_path, 'rb') as f:
-                files = {'file': ('test.png', f, 'image/png')}
-                data = {'lang': 'ch', 'use_gpu': 'false'}
-                resp = requests.post("http://localhost:8000/api/v1/ocr/file", files=files, data=data, timeout=10)
-            logging.info(f"[ocr/file] 状态码: {resp.status_code}, 返回: {resp.json()}")
-            if resp.status_code != 200 or not resp.json().get('success'):
-                logging.error("ocr/file 接口测试失败")
-                return False
-        except Exception as e:
-            logging.error(f"ocr/file 接口异常: {e}")
+        all_passed = True
+        for img_name in sorted(img_files):
+            img_path = temp_dir / img_name
+            try:
+                with open(img_path, 'rb') as f:
+                    files = {'file': (img_name, f, 'image/png')}
+                    data = {'lang': 'ch', 'use_gpu': 'false'}
+                    resp = requests.post("http://localhost:8000/api/v1/ocr/file", files=files, data=data, timeout=10)
+                logging.info(f"[ocr/file] {img_name} 状态码: {resp.status_code}, 返回: {resp.json()}")
+                if resp.status_code != 200 or not resp.json().get('success'):
+                    logging.error(f"ocr/file 接口测试失败: {img_name}")
+                    all_passed = False
+            except Exception as e:
+                logging.error(f"ocr/file 接口异常: {img_name}: {e}")
+                all_passed = False
+        if all_passed:
+            logging.info("所有图片识别接口测试通过")
+            return True
+        else:
+            logging.error("部分图片识别接口测试失败")
             return False
-
-        logging.info("文件识别接口测试通过")
-        return True
     
     def stop_service(self):
         """停止服务"""

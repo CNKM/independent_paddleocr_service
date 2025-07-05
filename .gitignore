@@ -4,9 +4,7 @@ models/
 # 忽略日志文件夹下的所有内容
 logs/
 
-# 忽略临时文件
-temp/
-!temp/test.png
+
 
 # 忽略 Python 缓存文件
 __pycache__/
