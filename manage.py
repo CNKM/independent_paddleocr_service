@@ -333,56 +333,90 @@ class ServiceManager:
     
     def _check_service_health(self):
         """检查服务健康状态"""
-        for i in range(5):
+        for i in range(3):
             try:
                 response = requests.get("http://localhost:8000/api/v1/health", timeout=3)
                 if response.status_code == 200:
                     return True
             except:
                 pass
-            if i < 4:
-                logging.info(f"   尝试连接服务中... ({i+1}/5)")
-            time.sleep(2)
+            if i < 2:
+                logging.info(f"   尝试连接服务中... ({i+1}/3)")
+            time.sleep(1)
         return False
     
+
     def test_service(self):
-        """测试服务"""
-        logging.info("测试服务功能...")
+        """仅测试 ocr/file 文件上传接口"""
+        logging.info("测试服务文件识别接口...")
         if not self._check_service_health():
             logging.error("服务健康检查失败")
             return False
         logging.info("服务健康检查通过")
+
+        # 只测 ocr/file
+        test_img_path = str(self.script_dir / 'temp' / 'test.png')
+        if not os.path.exists(test_img_path):
+            logging.error(f"测试图片不存在: {test_img_path}")
+            return False
         try:
-            response = requests.get("http://localhost:8000/api/v1/info", timeout=10)
-            if response.status_code == 200:
-                info = response.json()
-                logging.info("服务信息获取成功")
-                logging.info(f"   版本: {info.get('version', 'N/A')}")
-                logging.info(f"   状态: {info.get('status', 'N/A')}")
-            else:
-                logging.error(f"服务信息获取失败，状态码: {response.status_code}")
+            with open(test_img_path, 'rb') as f:
+                files = {'file': ('test.png', f, 'image/png')}
+                data = {'lang': 'ch', 'use_gpu': 'false'}
+                resp = requests.post("http://localhost:8000/api/v1/ocr/file", files=files, data=data, timeout=10)
+            logging.info(f"[ocr/file] 状态码: {resp.status_code}, 返回: {resp.json()}")
+            if resp.status_code != 200 or not resp.json().get('success'):
+                logging.error("ocr/file 接口测试失败")
                 return False
         except Exception as e:
-            logging.error(f"服务信息获取异常: {e}")
+            logging.error(f"ocr/file 接口异常: {e}")
             return False
-        logging.info("服务测试通过")
+
+        logging.info("文件识别接口测试通过")
         return True
     
     def stop_service(self):
         """停止服务"""
         logging.info("停止服务...")
         if self.system == "windows":
-            command = "taskkill /F /IM python.exe"
+            # 只杀掉 paddleocr_service.py 进程
+            try:
+                result = subprocess.run(
+                    'wmic process where "CommandLine like \'%paddleocr_service.py%\' and not CommandLine like \'%manage.py%\'" get ProcessId,CommandLine /FORMAT:LIST',
+                    shell=True, capture_output=True, text=True)
+                pids = []
+                for line in result.stdout.splitlines():
+                    if line.startswith("ProcessId="):
+                        pid = line.split("=", 1)[1].strip()
+                        if pid:
+                            pids.append(pid)
+                if pids:
+                    for pid in pids:
+                        logging.info(f"终止进程 PID: {pid}")
+                        subprocess.run(f"taskkill /F /PID {pid}", shell=True)
+                else:
+                    logging.info("未找到 paddleocr_service.py 进程，无需终止")
+                    logging.info("服务已停止")
+                    return True
+            except Exception as e:
+                logging.error(f"终止进程时出错: {e}")
         else:
             command = "pkill -f paddleocr_service.py"
-        self._run_command(command)
+            self._run_command(command)
         time.sleep(2)
+        # 优化：如果服务已停，不再尝试连接
         if not self._check_service_health():
             logging.info("服务已停止")
             return True
-        else:
-            logging.warning("服务可能仍在运行")
-            return False
+        # 若还在运行，再尝试重试
+        for i in range(3):
+            time.sleep(5)
+            logging.info(f"    尝试连接服务中... ({i+1}/3)")
+            if not self._check_service_health():
+                logging.info("服务已停止")
+                return True
+        logging.warning("服务可能仍在运行")
+        return False
     
     def show_status(self):
         """显示服务状态"""
