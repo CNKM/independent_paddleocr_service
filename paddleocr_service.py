@@ -47,14 +47,24 @@ os.environ['PADDLEX_MODEL_PATH'] = str(model_dir)
 logger = logging.getLogger(__name__)
 logger.info(f"设置模型目录: {model_dir}")
 
-# 配置日志
+# 配置日志，日志文件强制写入 logs 目录
+LOG_DIR = current_dir / 'logs'
+LOG_DIR.mkdir(exist_ok=True)
+from logging.handlers import TimedRotatingFileHandler
+LOG_FILE = LOG_DIR / 'paddleocr_service.log'
+for handler in logging.root.handlers[:]:
+    logging.root.removeHandler(handler)
+# 按天分割日志文件，保留30天
+file_handler = TimedRotatingFileHandler(
+    str(LOG_FILE), when='midnight', interval=1, backupCount=30, encoding='utf-8'
+)
+file_handler.suffix = "%Y-%m-%d.log"
+file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('paddleocr_service.log'),
-        logging.StreamHandler(sys.stdout)
-    ]
+    handlers=[file_handler, console_handler]
 )
 logger = logging.getLogger(__name__)
 
@@ -158,8 +168,7 @@ class OCRModelManager:
                     lang=lang,
                     det_model_dir=None,  # 让 PaddleOCR 自动下载到指定目录
                     rec_model_dir=None,
-                    cls_model_dir=None,
-                    show_log=True
+                    cls_model_dir=None
                 )
                 
                 self.stats['models_loaded'] += 1
@@ -392,159 +401,136 @@ def create_app():
     def health_check():
         """健康检查"""
         return jsonify({
-            'status': 'healthy',
+            'success': True,
             'timestamp': datetime.now().isoformat(),
-            'version': '1.0.0',
-            'paddle_version': paddle.__version__,
-            'gpu_available': paddle.device.is_compiled_with_cuda(),
-            'uptime': time.time() - ocr_service.model_manager.stats['start_time']
+            'data': {
+                'status': 'healthy',
+                'version': '1.0.0',
+                'paddle_version': paddle.__version__,
+                'gpu_available': paddle.device.is_compiled_with_cuda(),
+                'uptime': time.time() - ocr_service.model_manager.stats['start_time']
+            }
         })
-    
+
     @app.route('/api/v1/info', methods=['GET'])
     def get_info():
         """获取服务信息"""
-        # 状态判断，可根据实际业务完善
         status = 'running'
         try:
-            # 可根据实际健康检查逻辑动态判断
             status_check = True
-            # 例如：如果模型加载失败可设为 error
         except Exception:
             status = 'error'
         return jsonify({
-            'name': 'PaddleOCR Service',
-            'version': '1.0.0',
-            'description': '高性能多语言 OCR 服务',
-            'author': 'PaddleOCR Team',
-            'status': status,
-            'supported_languages': ['ch', 'en'],
-            'supported_formats': config.config['ocr']['supported_formats'],
-            'api_endpoints': {
-                'GET /api/v1/health': '健康检查',
-                'GET /api/v1/info': '服务信息',
-                'POST /api/v1/ocr/file': '文件上传识别',
-                'POST /api/v1/ocr/base64': 'Base64 图像识别',
-                'POST /api/v1/ocr/url': 'URL 图像识别',
-                'POST /api/v1/ocr/batch': '批量图像处理',
-                'GET /api/v1/models': '模型信息',
-                'GET /api/v1/stats': '统计信息'
+            'success': True,
+            'timestamp': datetime.now().isoformat(),
+            'data': {
+                'name': 'PaddleOCR Service',
+                'version': '1.0.0',
+                'description': '高性能多语言 OCR 服务',
+                'author': 'PaddleOCR Team',
+                'status': status,
+                'supported_languages': ['ch', 'en'],
+                'supported_formats': config.config['ocr']['supported_formats'],
+                'api_endpoints': {
+                    'GET /api/v1/health': '健康检查',
+                    'GET /api/v1/info': '服务信息',
+                    'POST /api/v1/ocr/file': '文件上传识别',
+                    'POST /api/v1/ocr/base64': 'Base64 图像识别',
+                    'POST /api/v1/ocr/url': 'URL 图像识别',
+                    'POST /api/v1/ocr/batch': '批量图像处理',
+                    'GET /api/v1/models': '模型信息',
+                    'GET /api/v1/stats': '统计信息'
+                }
             }
         })
-    
+
     @app.route('/api/v1/ocr/file', methods=['POST'])
     def ocr_file():
         """文件上传识别"""
         try:
             if 'file' not in request.files:
-                return jsonify({'success': False, 'error': '未找到文件'}), 400
-            
+                return jsonify({'success': False, 'timestamp': datetime.now().isoformat(), 'error': '未找到文件', 'error_type': 'FileNotFound'}), 400
             file = request.files['file']
             if file.filename == '':
-                return jsonify({'success': False, 'error': '未选择文件'}), 400
-            
-            # 获取参数
+                return jsonify({'success': False, 'timestamp': datetime.now().isoformat(), 'error': '未选择文件', 'error_type': 'FileNotSelected'}), 400
             lang = request.form.get('lang', config.config['ocr']['default_lang'])
             use_gpu = request.form.get('use_gpu', '').lower() == 'true'
-            
-            # 保存临时文件
             temp_filename = f"{uuid.uuid4().hex}_{file.filename}"
             temp_path = os.path.join(ocr_service.temp_dir, temp_filename)
             file.save(temp_path)
-            
-            # 处理图像
             result = ocr_service.process_image_file(temp_path, lang, use_gpu)
-            
-            # 清理临时文件
             if os.path.exists(temp_path):
                 os.remove(temp_path)
-            
-            return jsonify(result)
-            
+            if result.get('success', False):
+                return jsonify({'success': True, 'timestamp': datetime.now().isoformat(), 'data': result})
+            else:
+                return jsonify({'success': False, 'timestamp': datetime.now().isoformat(), 'error': result.get('error', '识别失败'), 'error_type': result.get('error_type', 'Unknown')}), 500
         except Exception as e:
             logger.error(f"文件上传处理失败: {e}")
-            return jsonify({
-                'success': False,
-                'error': str(e),
-                'error_type': type(e).__name__
-            }), 500
-    
+            return jsonify({'success': False, 'timestamp': datetime.now().isoformat(), 'error': str(e), 'error_type': type(e).__name__}), 500
+
     @app.route('/api/v1/ocr/base64', methods=['POST'])
     def ocr_base64():
         """Base64 图像识别"""
         try:
             data = request.get_json()
-            
             if not data or 'image' not in data:
-                return jsonify({'success': False, 'error': '缺少图像数据'}), 400
-            
+                return jsonify({'success': False, 'timestamp': datetime.now().isoformat(), 'error': '缺少图像数据', 'error_type': 'NoImage'}), 400
             base64_data = data['image']
             lang = data.get('lang', config.config['ocr']['default_lang'])
             use_gpu = data.get('use_gpu', False)
-            
             result = ocr_service.process_base64_image(base64_data, lang, use_gpu)
-            return jsonify(result)
-            
+            if result.get('success', False):
+                return jsonify({'success': True, 'timestamp': datetime.now().isoformat(), 'data': result})
+            else:
+                return jsonify({'success': False, 'timestamp': datetime.now().isoformat(), 'error': result.get('error', '识别失败'), 'error_type': result.get('error_type', 'Unknown')}), 500
         except Exception as e:
             logger.error(f"Base64 处理失败: {e}")
-            return jsonify({
-                'success': False,
-                'error': str(e),
-                'error_type': type(e).__name__
-            }), 500
-    
+            return jsonify({'success': False, 'timestamp': datetime.now().isoformat(), 'error': str(e), 'error_type': type(e).__name__}), 500
+
     @app.route('/api/v1/ocr/url', methods=['POST'])
     def ocr_url():
         """URL 图像识别"""
         try:
             data = request.get_json()
-            
             if not data or 'url' not in data:
-                return jsonify({'success': False, 'error': '缺少图像 URL'}), 400
-            
+                return jsonify({'success': False, 'timestamp': datetime.now().isoformat(), 'error': '缺少图像 URL', 'error_type': 'NoURL'}), 400
             image_url = data['url']
             lang = data.get('lang', config.config['ocr']['default_lang'])
             use_gpu = data.get('use_gpu', False)
-            
             result = ocr_service.process_url_image(image_url, lang, use_gpu)
-            return jsonify(result)
-            
+            if result.get('success', False):
+                return jsonify({'success': True, 'timestamp': datetime.now().isoformat(), 'data': result})
+            else:
+                return jsonify({'success': False, 'timestamp': datetime.now().isoformat(), 'error': result.get('error', '识别失败'), 'error_type': result.get('error_type', 'Unknown')}), 500
         except Exception as e:
             logger.error(f"URL 处理失败: {e}")
-            return jsonify({
-                'success': False,
-                'error': str(e),
-                'error_type': type(e).__name__
-            }), 500
-    
+            return jsonify({'success': False, 'timestamp': datetime.now().isoformat(), 'error': str(e), 'error_type': type(e).__name__}), 500
+
     @app.route('/api/v1/ocr/batch', methods=['POST'])
     def ocr_batch():
         """批量图像处理"""
         try:
             data = request.get_json()
-            
             if not data or 'images' not in data:
-                return jsonify({'success': False, 'error': '缺少图像数据'}), 400
-            
+                return jsonify({'success': False, 'timestamp': datetime.now().isoformat(), 'error': '缺少图像数据', 'error_type': 'NoImages'}), 400
             images = data['images']
             lang = data.get('lang', config.config['ocr']['default_lang'])
             use_gpu = data.get('use_gpu', False)
-            
             result = ocr_service.process_batch_images(images, lang, use_gpu)
-            return jsonify(result)
-            
+            if result.get('success', False):
+                return jsonify({'success': True, 'timestamp': datetime.now().isoformat(), 'data': result})
+            else:
+                return jsonify({'success': False, 'timestamp': datetime.now().isoformat(), 'error': result.get('error', '识别失败'), 'error_type': result.get('error_type', 'Unknown')}), 500
         except Exception as e:
             logger.error(f"批量处理失败: {e}")
-            return jsonify({
-                'success': False,
-                'error': str(e),
-                'error_type': type(e).__name__
-            }), 500
-    
+            return jsonify({'success': False, 'timestamp': datetime.now().isoformat(), 'error': str(e), 'error_type': type(e).__name__}), 500
+
     @app.route('/api/v1/models', methods=['GET'])
     def get_models():
         """获取模型信息"""
-        return jsonify(ocr_service.model_manager.get_model_info())
-    
+        return jsonify({'success': True, 'timestamp': datetime.now().isoformat(), 'data': ocr_service.model_manager.get_model_info()})
+
     @app.route('/api/v1/stats', methods=['GET'])
     def get_stats():
         """获取统计信息"""
@@ -553,7 +539,7 @@ def create_app():
         stats['success_rate'] = (
             stats['successful_requests'] / max(stats['total_requests'], 1) * 100
         )
-        return jsonify(stats)
+        return jsonify({'success': True, 'timestamp': datetime.now().isoformat(), 'data': stats})
     
     return app, config
 

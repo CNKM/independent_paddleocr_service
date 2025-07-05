@@ -56,7 +56,7 @@ class ColorFormatter(logging.Formatter):
 
 # 文件日志：每天一个文件，保留30天
 file_handler = TimedRotatingFileHandler(
-    LOG_FILE, when='midnight', interval=1, backupCount=30, encoding='utf-8'
+    str(LOG_FILE), when='midnight', interval=1, backupCount=30, encoding='utf-8'
 )
 file_handler.setFormatter(logging.Formatter('[%(asctime)s] [%(levelname)s] %(message)s'))
 
@@ -64,6 +64,8 @@ file_handler.setFormatter(logging.Formatter('[%(asctime)s] [%(levelname)s] %(mes
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setFormatter(ColorFormatter('[%(asctime)s] [%(levelname)s] %(message)s'))
 
+for handler in logging.root.handlers[:]:
+    logging.root.removeHandler(handler)
 logging.basicConfig(
     level=logging.INFO,
     handlers=[file_handler, console_handler]
@@ -391,10 +393,11 @@ class ServiceManager:
                 response = requests.get("http://localhost:8000/api/v1/info", timeout=5)
                 if response.status_code == 200:
                     info = response.json()
+                    data = info.get('data', {})
                     logging.info(f"   服务地址: http://localhost:8000")
-                    logging.info(f"   版本: {info.get('version', 'N/A')}")
-                    logging.info(f"   状态: {info.get('status', 'N/A')}")
-                    logging.info(f"   支持语言: {info.get('supported_languages', [])}")
+                    logging.info(f"   版本: {data.get('version', 'N/A')}")
+                    logging.info(f"   状态: {data.get('status', 'N/A')}")
+                    logging.info(f"   支持语言: {data.get('supported_languages', [])}")
             except:
                 pass
         else:
