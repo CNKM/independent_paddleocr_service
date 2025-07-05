@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-PaddleOCR 服务 Python 客户端
-支持文件、Base64、URL 等多种输入方式的 OCR 识别
+PaddleOCR 服务 Python 客户端，仅支持文件和 URL 识别
 """
 
 import os
-import base64
 import json
 import time
 import logging
@@ -85,29 +83,6 @@ class PaddleOCRClient:
             response.raise_for_status()
             return response.json()
     
-    def ocr_from_base64(self, base64_data: str, lang: str = "ch") -> Dict:
-        """
-        从 Base64 数据识别文字
-        
-        Args:
-            base64_data: Base64 编码的图片数据
-            lang: 语言代码
-        
-        Returns:
-            OCR 识别结果
-        """
-        payload = {
-            'image': base64_data,
-            'lang': lang
-        }
-        
-        response = self.session.post(
-            f"{self.base_url}/api/v1/ocr/base64",
-            json=payload,
-            timeout=self.timeout
-        )
-        response.raise_for_status()
-        return response.json()
     
     def ocr_from_url(self, image_url: str, lang: str = "ch") -> Dict:
         """
@@ -133,89 +108,6 @@ class PaddleOCRClient:
         response.raise_for_status()
         return response.json()
     
-    def ocr_batch_files(self, file_paths: List[str], lang: str = "ch") -> Dict:
-        """
-        批量识别文件
-        
-        Args:
-            file_paths: 图片文件路径列表
-            lang: 语言代码
-        
-        Returns:
-            批量识别结果
-        """
-        files = []
-        for file_path in file_paths:
-            if not os.path.exists(file_path):
-                raise FileNotFoundError(f"文件不存在: {file_path}")
-            files.append(('files', (os.path.basename(file_path), open(file_path, 'rb'), 'image/*')))
-        
-        try:
-            data = {'lang': lang}
-            response = self.session.post(
-                f"{self.base_url}/api/v1/ocr/batch",
-                files=files,
-                data=data,
-                timeout=self.timeout
-            )
-            response.raise_for_status()
-            return response.json()
-        finally:
-            # 关闭文件
-            for _, (_, file_obj, _) in files:
-                file_obj.close()
-    
-    def ocr_batch_base64(self, base64_list: List[str], lang: str = "ch") -> Dict:
-        """
-        批量识别 Base64 数据
-        
-        Args:
-            base64_list: Base64 编码的图片数据列表
-            lang: 语言代码
-        
-        Returns:
-            批量识别结果
-        """
-        payload = {
-            'images': base64_list,
-            'lang': lang
-        }
-        
-        response = self.session.post(
-            f"{self.base_url}/api/v1/ocr/batch",
-            json=payload,
-            timeout=self.timeout
-        )
-        response.raise_for_status()
-        return response.json()
-    
-    def image_to_base64(self, file_path: str) -> str:
-        """
-        将图片文件转换为 Base64 编码
-        
-        Args:
-            file_path: 图片文件路径
-        
-        Returns:
-            Base64 编码的图片数据
-        """
-        if not os.path.exists(file_path):
-            raise FileNotFoundError(f"文件不存在: {file_path}")
-        
-        with open(file_path, 'rb') as f:
-            return base64.b64encode(f.read()).decode('utf-8')
-    
-    def save_base64_image(self, base64_data: str, file_path: str) -> None:
-        """
-        保存 Base64 图片数据到文件
-        
-        Args:
-            base64_data: Base64 编码的图片数据
-            file_path: 保存的文件路径
-        """
-        image_data = base64.b64decode(base64_data)
-        with open(file_path, 'wb') as f:
-            f.write(image_data)
     
     def extract_text_only(self, ocr_result: Dict) -> List[str]:
         """

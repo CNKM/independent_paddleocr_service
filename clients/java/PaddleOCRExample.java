@@ -84,64 +84,7 @@ public class PaddleOCRExample {
                     System.out.println("❌ 文件识别异常: " + e.getMessage());
                 }
                 
-                // Base64 识别
-                System.out.println("\n3.2 Base64 识别...");
-                try {
-                    String base64Data = client.imageToBase64(sampleImage);
-                    JsonNode result = client.ocrFromBase64(base64Data, "ch");
-                    if (result.get("success").asBoolean()) {
-                        System.out.println("✅ Base64 识别成功");
-                        JsonNode data = result.get("data");
-                        if (data.isArray()) {
-                            System.out.println("识别到 " + data.size() + " 行文本");
-                        }
-                    } else {
-                        System.out.println("❌ Base64 识别失败: " + result.get("error").asText());
-                    }
-                } catch (Exception e) {
-                    System.out.println("❌ Base64 识别异常: " + e.getMessage());
-                }
-                
-                // 批量处理示例
-                System.out.println("\n3.3 批量处理示例...");
-                try {
-                    // 假设有多个相同的图片文件
-                    List<String> imageFiles = Arrays.asList(sampleImage);
-                    
-                    JsonNode result = client.ocrBatchFiles(imageFiles, "ch");
-                    if (result.get("success").asBoolean()) {
-                        System.out.println("✅ 批量处理成功");
-                        JsonNode data = result.get("data");
-                        if (data.isArray()) {
-                            for (int i = 0; i < data.size(); i++) {
-                                System.out.println("文件 " + imageFiles.get(i) + ":");
-                                JsonNode fileResult = data.get(i);
-                                if (fileResult.get("success").asBoolean()) {
-                                    JsonNode fileData = fileResult.get("data");
-                                    if (fileData.isArray()) {
-                                        int textIndex = 1;
-                                        for (JsonNode item : fileData) {
-                                            if (item.isArray() && item.size() >= 2) {
-                                                JsonNode textInfo = item.get(1);
-                                                if (textInfo.isArray() && textInfo.size() >= 1) {
-                                                    String text = textInfo.get(0).asText();
-                                                    System.out.println("  " + textIndex + ". " + text);
-                                                    textIndex++;
-                                                }
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    System.out.println("  ❌ 识别失败: " + fileResult.get("error").asText());
-                                }
-                            }
-                        }
-                    } else {
-                        System.out.println("❌ 批量处理失败: " + result.get("error").asText());
-                    }
-                } catch (Exception e) {
-                    System.out.println("❌ 批量处理异常: " + e.getMessage());
-                }
+                // ...已移除 base64 和批量相关演示...
                 
             } else {
                 System.out.println("\n⚠️  示例图片不存在: " + sampleImage);

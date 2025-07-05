@@ -72,27 +72,7 @@ namespace PaddleOCR.Client
             return JsonSerializer.Deserialize<OCRResult>(json, GetJsonOptions());
         }
 
-        /// <summary>
-        /// 识别 Base64 编码的图像
-        /// </summary>
-        public async Task<OCRResult> RecognizeBase64Async(string base64Data, string lang = "ch", bool useGpu = false)
-        {
-            var request = new Base64Request
-            {
-                Image = base64Data,
-                Lang = lang,
-                UseGpu = useGpu
-            };
 
-            var json = JsonSerializer.Serialize(request, GetJsonOptions());
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            var response = await _httpClient.PostAsync($"{_baseUrl}/api/v1/ocr/base64", content);
-            response.EnsureSuccessStatusCode();
-
-            var responseJson = await response.Content.ReadAsStringAsync();
-            return JsonSerializer.Deserialize<OCRResult>(responseJson, GetJsonOptions());
-        }
 
         /// <summary>
         /// 识别 URL 图像
@@ -116,50 +96,9 @@ namespace PaddleOCR.Client
             return JsonSerializer.Deserialize<OCRResult>(responseJson, GetJsonOptions());
         }
 
-        /// <summary>
-        /// 批量处理图像
-        /// </summary>
-        public async Task<BatchResult> RecognizeBatchAsync(string[] base64Images, string lang = "ch", bool useGpu = false)
-        {
-            var request = new BatchRequest
-            {
-                Images = base64Images,
-                Lang = lang,
-                UseGpu = useGpu
-            };
 
-            var json = JsonSerializer.Serialize(request, GetJsonOptions());
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var response = await _httpClient.PostAsync($"{_baseUrl}/api/v1/ocr/batch", content);
-            response.EnsureSuccessStatusCode();
 
-            var responseJson = await response.Content.ReadAsStringAsync();
-            return JsonSerializer.Deserialize<BatchResult>(responseJson, GetJsonOptions());
-        }
-
-        /// <summary>
-        /// 将文件转换为 Base64
-        /// </summary>
-        public static string FileToBase64(string filePath)
-        {
-            if (!File.Exists(filePath))
-                throw new FileNotFoundException($"文件不存在: {filePath}");
-
-            var bytes = File.ReadAllBytes(filePath);
-            var base64 = Convert.ToBase64String(bytes);
-            
-            var extension = Path.GetExtension(filePath).ToLower();
-            var mimeType = extension switch
-            {
-                ".png" => "image/png",
-                ".gif" => "image/gif",
-                ".webp" => "image/webp",
-                _ => "image/jpeg"
-            };
-
-            return $"data:{mimeType};base64,{base64}";
-        }
 
         /// <summary>
         /// 获取统计信息
@@ -231,14 +170,7 @@ namespace PaddleOCR.Client
         public double[][] Bbox { get; set; }
     }
 
-    public class BatchResult
-    {
-        public bool Success { get; set; }
-        public string Timestamp { get; set; }
-        public int Total { get; set; }
-        public OCRResult[] Results { get; set; }
-        public string Error { get; set; }
-    }
+
 
     public class StatsResponse
     {
@@ -252,12 +184,7 @@ namespace PaddleOCR.Client
     }
 
     // 请求模型
-    public class Base64Request
-    {
-        public string Image { get; set; }
-        public string Lang { get; set; }
-        public bool UseGpu { get; set; }
-    }
+
 
     public class UrlRequest
     {
@@ -266,10 +193,5 @@ namespace PaddleOCR.Client
         public bool UseGpu { get; set; }
     }
 
-    public class BatchRequest
-    {
-        public string[] Images { get; set; }
-        public string Lang { get; set; }
-        public bool UseGpu { get; set; }
-    }
+
 }

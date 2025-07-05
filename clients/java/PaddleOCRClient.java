@@ -9,7 +9,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -143,41 +142,6 @@ public class PaddleOCRClient {
         return ocrFromFile(filePath, "ch");
     }
     
-    /**
-     * 从 Base64 数据识别文字
-     * 
-     * @param base64Data Base64 编码的图片数据
-     * @param lang 语言代码
-     * @return OCR 识别结果
-     * @throws IOException 请求异常
-     */
-    public JsonNode ocrFromBase64(String base64Data, String lang) throws IOException {
-        String jsonPayload = String.format("{\"image\":\"%s\",\"lang\":\"%s\"}", base64Data, lang);
-        
-        RequestBody requestBody = RequestBody.create(jsonPayload, MediaType.parse("application/json"));
-        Request request = new Request.Builder()
-                .url(baseUrl + "/api/v1/ocr/base64")
-                .post(requestBody)
-                .build();
-        
-        Response response = httpClient.newCall(request).execute();
-        if (!response.isSuccessful()) {
-            throw new IOException("Base64 识别失败: " + response.code());
-        }
-        
-        String responseBody = response.body().string();
-        return objectMapper.readTree(responseBody);
-    }
-    
-    /**
-     * 从 Base64 数据识别文字（默认中文）
-     * 
-     * @param base64Data Base64 编码的图片数据
-     * @return OCR 识别结果
-     * @throws IOException 请求异常
-     */
-    public JsonNode ocrFromBase64(String base64Data) throws IOException {
-        return ocrFromBase64(base64Data, "ch");
     }
     
     /**
@@ -217,82 +181,7 @@ public class PaddleOCRClient {
         return ocrFromUrl(imageUrl, "ch");
     }
     
-    /**
-     * 批量识别文件
-     * 
-     * @param filePaths 图片文件路径列表
-     * @param lang 语言代码
-     * @return 批量识别结果
-     * @throws IOException 请求异常
-     */
-    public JsonNode ocrBatchFiles(List<String> filePaths, String lang) throws IOException {
-        MultipartBody.Builder builder = new MultipartBody.Builder()
-                .setType(MultipartBody.FORM)
-                .addFormDataPart("lang", lang);
-        
-        for (String filePath : filePaths) {
-            File file = new File(filePath);
-            if (!file.exists()) {
-                throw new IOException("文件不存在: " + filePath);
-            }
-            
-            RequestBody fileBody = RequestBody.create(file, MediaType.parse("image/*"));
-            builder.addFormDataPart("files", file.getName(), fileBody);
-        }
-        
-        RequestBody requestBody = builder.build();            Request request = new Request.Builder()
-                .url(baseUrl + "/api/v1/ocr/batch")
-                .post(requestBody)
-                .build();
-        
-        Response response = httpClient.newCall(request).execute();
-        if (!response.isSuccessful()) {
-            throw new IOException("批量识别失败: " + response.code());
-        }
-        
-        String responseBody = response.body().string();
-        return objectMapper.readTree(responseBody);
-    }
-    
-    /**
-     * 批量识别文件（默认中文）
-     * 
-     * @param filePaths 图片文件路径列表
-     * @return 批量识别结果
-     * @throws IOException 请求异常
-     */
-    public JsonNode ocrBatchFiles(List<String> filePaths) throws IOException {
-        return ocrBatchFiles(filePaths, "ch");
-    }
-    
-    /**
-     * 将图片文件转换为 Base64 编码
-     * 
-     * @param filePath 图片文件路径
-     * @return Base64 编码的图片数据
-     * @throws IOException 文件读取异常
-     */
-    public String imageToBase64(String filePath) throws IOException {
-        File file = new File(filePath);
-        if (!file.exists()) {
-            throw new IOException("文件不存在: " + filePath);
-        }
-        
-        byte[] imageBytes = Files.readAllBytes(file.toPath());
-        return Base64.getEncoder().encodeToString(imageBytes);
-    }
-    
-    /**
-     * 保存 Base64 图片数据到文件
-     * 
-     * @param base64Data Base64 编码的图片数据
-     * @param filePath 保存的文件路径
-     * @throws IOException 文件写入异常
-     */
-    public void saveBase64Image(String base64Data, String filePath) throws IOException {
-        byte[] imageBytes = Base64.getDecoder().decode(base64Data);
-        Files.write(new File(filePath).toPath(), imageBytes);
-    }
+    // ...已移除 base64 和批量相关方法...
     
     /**
      * 关闭客户端

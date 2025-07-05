@@ -52,36 +52,7 @@ namespace PaddleOCR.Examples
                     Console.WriteLine($"图像文件不存在: {imagePath}");
                 }
 
-                // 4. Base64 识别示例
-                Console.WriteLine("\n📦 Base64 识别示例...");
-                if (System.IO.File.Exists(imagePath))
-                {
-                    var base64Data = PaddleOCRClient.FileToBase64(imagePath);
-                    var result = await client.RecognizeBase64Async(base64Data, "en", false);
-                    
-                    if (result.Success)
-                    {
-                        Console.WriteLine($"Base64 识别结果: {result.Text}");
-                    }
-                }
 
-                // 5. 批量处理示例
-                Console.WriteLine("\n📚 批量处理示例...");
-                if (System.IO.File.Exists(imagePath))
-                {
-                    var base64Data = PaddleOCRClient.FileToBase64(imagePath);
-                    var batchResult = await client.RecognizeBatchAsync(
-                        new[] { base64Data, base64Data }, "en", false);
-                    
-                    if (batchResult.Success)
-                    {
-                        Console.WriteLine($"批量处理完成，共处理 {batchResult.Total} 个图像");
-                        for (int i = 0; i < batchResult.Results.Length; i++)
-                        {
-                            Console.WriteLine($"  图像 {i + 1}: {batchResult.Results[i].Text}");
-                        }
-                    }
-                }
 
                 // 6. 获取统计信息
                 Console.WriteLine("\n📊 获取统计信息...");
