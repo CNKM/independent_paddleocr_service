@@ -12,7 +12,7 @@ PaddleOCR 独立服务是一个高性能、易部署的 OCR 服务包，提供 R
 - 高性能：基于 PaddleOCR 引擎，支持多种语言识别
 - 易部署：支持 Docker、脚本一键部署
 - 多语言：支持中、英、法、德等
-- 批量处理、多种输入方式
+- 文件和 URL 输入方式
 - 跨平台：Windows、Linux、macOS
 - 客户端库：Python、Java、C#、Node.js
 - 日志、监控、健康检查
@@ -76,9 +76,7 @@ docker run -d -p 8000:8000 paddleocr-service
 | `/api/v1/health` | GET | 健康检查 |
 | `/api/v1/info` | GET | 服务信息 |
 | `/api/v1/ocr/file` | POST | 文件识别 |
-| `/api/v1/ocr/base64` | POST | Base64 识别 |
 | `/api/v1/ocr/url` | POST | URL 识别 |
-| `/api/v1/ocr/batch` | POST | 批量识别 |
 | `/api/v1/models` | GET | 模型信息 |
 | `/api/v1/stats` | GET | 统计信息 |
 
