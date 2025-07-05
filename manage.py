@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 from pathlib import Path
 from logging.handlers import TimedRotatingFileHandler
@@ -17,10 +18,41 @@ class ColorFormatter(logging.Formatter):
         'CRITICAL': '\033[41m',
     }
     RESET = '\033[0m'
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.use_color = self._should_use_color()
+    
+    def _should_use_color(self):
+        """检测是否应该使用颜色输出"""
+        # 检查是否在 VSCode 终端
+        if 'VSCODE_PID' in os.environ:
+            return True
+        
+        # 检查是否在 Windows Terminal 或其他现代终端
+        if os.name == 'nt':
+            term = os.environ.get('TERM', '')
+            if term or os.environ.get('WT_SESSION'):
+                return True
+            
+            # 检查是否支持 ANSI 转义序列
+            try:
+                import ctypes
+                kernel32 = ctypes.windll.kernel32
+                # 启用 ANSI 转义序列支持
+                kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
+                return True
+            except:
+                return False
+        
+        return True
+    
     def format(self, record):
         msg = super().format(record)
-        color = self.COLORS.get(record.levelname, '')
-        return f"{color}{msg}{self.RESET}" if color else msg
+        if self.use_color:
+            color = self.COLORS.get(record.levelname, '')
+            return f"{color}{msg}{self.RESET}" if color else msg
+        return msg
 
 # 文件日志：每天一个文件，保留30天
 file_handler = TimedRotatingFileHandler(
@@ -43,9 +75,37 @@ class ConsoleColor:
     BLUE = '\033[34m'
     RESET = '\033[0m'
 
-    @staticmethod
-    def color(text, color):
-        return f"{color}{text}{ConsoleColor.RESET}"
+    def __init__(self):
+        self.use_color = self._should_use_color()
+    
+    def _should_use_color(self):
+        """检测是否应该使用颜色输出"""
+        # 检查是否在 VSCode 终端
+        if 'VSCODE_PID' in os.environ:
+            return True
+        
+        # 检查是否在 Windows Terminal 或其他现代终端
+        if os.name == 'nt':
+            term = os.environ.get('TERM', '')
+            if term or os.environ.get('WT_SESSION'):
+                return True
+            
+            # 检查是否支持 ANSI 转义序列
+            try:
+                import ctypes
+                kernel32 = ctypes.windll.kernel32
+                # 启用 ANSI 转义序列支持
+                kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
+                return True
+            except:
+                return False
+        
+        return True
+
+    def color(self, text, color):
+        if self.use_color:
+            return f"{color}{text}{self.RESET}"
+        return text
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
@@ -70,7 +130,14 @@ from pathlib import Path
 if os.name == "nt":
     try:
         import ctypes
+        # 设置控制台输出编码为 UTF-8
         ctypes.windll.kernel32.SetConsoleOutputCP(65001)
+        # 尝试启用 ANSI 转义序列支持（Windows 10+ 支持）
+        try:
+            kernel32 = ctypes.windll.kernel32
+            kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
+        except:
+            pass
     except Exception:
         pass
     try:
@@ -168,17 +235,39 @@ class ServiceManager:
         """检查模型是否已下载"""
         logging.info("检查模型文件...")
         import os
-        model_dir = os.path.expanduser("~/.paddlex/official_models")
-        if not os.path.exists(model_dir):
+        # 使用当前项目目录下的 models 文件夹
+        model_dir = self.script_dir / "models"
+        logging.info(f"检查模型目录: {model_dir}")
+        
+        if not model_dir.exists():
             logging.warning("模型目录不存在，首次启动需要下载模型")
             return False
+        
+        # 统计各种模型文件
         model_files = []
+        model_count = {'pdmodel': 0, 'pdiparams': 0, 'yml': 0}
+        
         for root, dirs, files in os.walk(model_dir):
-            model_files.extend([f for f in files if f.endswith(('.pdmodel', '.pdiparams', '.yml'))])
-        if len(model_files) < 5:
+            for file in files:
+                if file.endswith('.pdmodel'):
+                    model_count['pdmodel'] += 1
+                    model_files.append(os.path.join(root, file))
+                elif file.endswith('.pdiparams'):
+                    model_count['pdiparams'] += 1
+                    model_files.append(os.path.join(root, file))
+                elif file.endswith('.yml'):
+                    model_count['yml'] += 1
+                    model_files.append(os.path.join(root, file))
+        
+        total_files = len(model_files)
+        logging.info(f"发现模型文件: {total_files} 个 (pdmodel: {model_count['pdmodel']}, pdiparams: {model_count['pdiparams']}, yml: {model_count['yml']})")
+        
+        # 检查是否有足够的模型文件 (至少需要一些基本模型)
+        if model_count['pdmodel'] < 3 or model_count['pdiparams'] < 3:
             logging.warning("模型文件不完整，首次启动需要下载模型")
             return False
-        logging.info(f"发现 {len(model_files)} 个模型文件")
+        
+        logging.info("模型文件检查完成，模型已就绪")
         return True
     
     def create_directories(self):
@@ -201,23 +290,30 @@ class ServiceManager:
         if self._is_port_occupied(8000):
             logging.warning("端口 8000 已被占用，服务可能已在运行")
             return False
+        
         models_exist = self.check_models_downloaded()
         if not models_exist:
             logging.warning("首次启动需要下载模型文件，这可能需要几分钟时间...")
             logging.warning("   模型将从 Hugging Face 或 BOS 下载并缓存到本地")
             logging.warning("   下载完成后，后续启动将快速完成")
+            wait_time = 60
+        else:
+            logging.info("模型文件已存在，正在启动服务...")
+            wait_time = 20
+        
         command = f"{self.python_cmd} {service_file}"
         if self.system == "windows":
             subprocess.Popen(command, shell=True, cwd=self.script_dir)
         else:
             subprocess.Popen(command, shell=True, cwd=self.script_dir,
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        logging.info("等待服务启动...")
+        
+        logging.info(f"等待服务启动... (预计需要 {wait_time} 秒)")
         if not models_exist:
             logging.warning("   正在下载模型文件，请耐心等待...")
-            time.sleep(60)
-        else:
-            time.sleep(15)
+        
+        time.sleep(wait_time)
+        
         if self._check_service_health():
             logging.info("服务启动成功")
             return True

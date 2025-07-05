@@ -33,6 +33,20 @@ import requests
 import paddle
 from paddleocr import PaddleOCR
 
+# 设置模型目录环境变量
+current_dir = Path(__file__).parent
+model_dir = current_dir / 'models'
+model_dir.mkdir(exist_ok=True)
+
+# 设置 PaddleOCR 相关环境变量
+os.environ['PADDLEOCR_MODEL_PATH'] = str(model_dir)
+os.environ['PADDLE_OCR_MODEL_PATH'] = str(model_dir)
+# 设置 PaddleX 模型路径（这是关键）
+os.environ['PADDLEX_MODEL_PATH'] = str(model_dir)
+
+logger = logging.getLogger(__name__)
+logger.info(f"设置模型目录: {model_dir}")
+
 # 配置日志
 logging.basicConfig(
     level=logging.INFO,
@@ -131,9 +145,21 @@ class OCRModelManager:
                     logger.info("使用 CPU 推理")
                 
                 # 创建模型
+                model_dir = self.config['ocr'].get('model_dir', './models')
+                # 转换为绝对路径
+                if not os.path.isabs(model_dir):
+                    model_dir = os.path.join(os.path.dirname(__file__), model_dir)
+                # 确保模型目录存在
+                os.makedirs(model_dir, exist_ok=True)
+                logger.info(f"使用模型目录: {model_dir}")
+                
                 self.models[model_key] = PaddleOCR(
                     use_textline_orientation=self.config['ocr']['use_textline_orientation'],
-                    lang=lang
+                    lang=lang,
+                    det_model_dir=None,  # 让 PaddleOCR 自动下载到指定目录
+                    rec_model_dir=None,
+                    cls_model_dir=None,
+                    show_log=True
                 )
                 
                 self.stats['models_loaded'] += 1
