@@ -1,7 +1,8 @@
 # PaddleOCR 独立服务依赖包
 
 # 核心依赖
-paddlepaddle==3.1.0 
+#paddlepaddle==3.1.0 
+paddlepaddle-gpu==3.1.0 -i https://www.paddlepaddle.org.cn/packages/stable/cu129/ 
 
 
 # Web 服务框架

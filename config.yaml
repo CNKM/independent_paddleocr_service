@@ -9,7 +9,7 @@ server:
 ocr:
   default_lang: 'ch'           # 默认语言
   use_textline_orientation: true # 使用文本方向识别
-  use_gpu: false               # 是否使用 GPU
+  use_gpu: true               # 是否使用 GPU
   max_image_size: 4096         # 最大图像尺寸
   model_dir: './models'        # 模型存储目录
   supported_formats:           # 支持的图像格式
